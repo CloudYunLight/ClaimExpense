@@ -1,0 +1,10 @@
+[database]
+; MySQL 连接配置
+host = localhost
+port = 3306
+username = root
+password = your_password_here
+
+; 数据库配置
+database = reimbursement_system
+charset = utf8mb4
