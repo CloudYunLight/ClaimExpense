@@ -151,7 +151,7 @@ app.use('/api/v1/lists', listRoutes);
 app.use('/api/v1/bills', billRoutes);
 app.use('/api/v1/dashboard', dashboardRoutes);
 
-// 404处理中间件
+// 404处理中间件；放在所有路由之后
 app.use(notFoundHandler);
 
 // 错误处理中间件
