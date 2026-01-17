@@ -1,4 +1,4 @@
-const db = require('./index');
+const DatabaseUtil = require('../utils/database');
 const bcrypt = require('bcryptjs');
 
 // 用户表结构定义
@@ -9,21 +9,21 @@ const User = {
     const hashedPassword = await bcrypt.hash(password, parseInt(process.env.BCRYPT_SALT_ROUNDS || 10));
     const query = 'INSERT INTO users (username, password, real_name, role, status) VALUES (?, ?, ?, ?, ?)';
     
-    const [result] = await db.execute(query, [username, hashedPassword, realName, role, 1]);
+    const [result] = await DatabaseUtil.execute(query, [username, hashedPassword, realName, role, 1]);
     return { userId: result.insertId };
   },
 
   // 根据用户名查找用户
   findByUsername: async (username) => {
     const query = 'SELECT * FROM users WHERE username = ?';
-    const [rows] = await db.execute(query, [username]);
+    const [rows] = await DatabaseUtil.execute(query, [username]);
     return rows[0];
   },
 
   // 根据ID查找用户
   findById: async (userId) => {
     const query = 'SELECT * FROM users WHERE user_id = ?';
-    const [rows] = await db.execute(query, [userId]);
+    const [rows] = await DatabaseUtil.execute(query, [userId]);
     return rows[0];
   },
 
@@ -76,8 +76,8 @@ const User = {
       countParams.push(status);
     }
     
-    const [countResult] = await db.execute(countQuery, countParams);
-    const [rows] = await db.execute(query, params);
+    const [countResult] = await DatabaseUtil.execute(countQuery, countParams);
+    const [rows] = await DatabaseUtil.execute(query, params);
     
     return {
       total: countResult[0].total,
@@ -90,7 +90,7 @@ const User = {
   // 更新用户状态
   updateUserStatus: async (userId, status) => {
     const query = 'UPDATE users SET status = ? WHERE user_id = ?';
-    const [result] = await db.execute(query, [status, userId]);
+    const [result] = await DatabaseUtil.execute(query, [status, userId]);
     return result.affectedRows > 0;
   },
 
@@ -105,7 +105,7 @@ const User = {
     
     const hashedPassword = await bcrypt.hash(newPassword, parseInt(process.env.BCRYPT_SALT_ROUNDS || 10));
     const query = 'UPDATE users SET password = ? WHERE user_id = ?';
-    const [result] = await db.execute(query, [hashedPassword, userId]);
+    const [result] = await DatabaseUtil.execute(query, [hashedPassword, userId]);
     
     return {
       success: result.affectedRows > 0,
@@ -116,7 +116,7 @@ const User = {
   // 检查用户名是否已存在
   checkUsernameExists: async (username) => {
     const query = 'SELECT COUNT(*) as count FROM users WHERE username = ?';
-    const [rows] = await db.execute(query, [username]);
+    const [rows] = await DatabaseUtil.execute(query, [username]);
     return rows[0].count > 0;
   }
 };

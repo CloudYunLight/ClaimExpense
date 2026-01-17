@@ -1,8 +1,6 @@
 const winston = require('winston');
+const config = require('./config');
 const fs = require('fs');
-// 读取配置文件中的日志级别
-const config = require('ini').parse(require('fs').readFileSync('../config/config.ini', 'utf-8'));
-
 // 确保logs目录存在
 if (!fs.existsSync('./logs')) {
   fs.mkdirSync('./logs', { recursive: true });

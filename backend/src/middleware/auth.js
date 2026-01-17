@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const config = require('ini').parse(require('fs').readFileSync('../config/config.ini', 'utf-8'));
+const config = require('../utils/config');
 
 const authenticateToken = (req, res, next) => {
   // 从请求头获取Authorization

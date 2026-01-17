@@ -1,8 +1,8 @@
+const config = require('./utils/config');
 const app = require('./app');
-const config = require('ini').parse(require('fs').readFileSync('../config/config.ini', 'utf-8'));
 const logger = require('./utils/logger');
 
-const PORT = config.server.port || 3000;
+const PORT = config.server.port ;
 
 app.listen(PORT, '0.0.0.0', () => {
   logger.info(`Running on http://0.0.0.0:${PORT}`);

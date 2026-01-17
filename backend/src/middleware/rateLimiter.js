@@ -1,5 +1,5 @@
 const rateLimit = require('express-rate-limit');
-const config = require('ini').parse(require('fs').readFileSync('../config/config.ini', 'utf-8'));
+const config = require('../utils/config');
 
 const limiter = rateLimit({
   windowMs: config.limiter.windowMin * 60 * 1000, // x分钟
@@ -14,7 +14,7 @@ const limiter = rateLimit({
   legacyHeaders: false, // 不使用x-rateLimit头部
 });
 
-// 专门针对登录接口的限流，更严格的限制
+// 登录接口的特殊限制
 const loginLimiter = rateLimit({
   windowMs: config.limiter.windowMin_login * 60 * 1000, // 15分钟
   max: config.limiter.max_login, // 限制每个IP在15分钟内最多尝试5次登录
@@ -24,8 +24,8 @@ const loginLimiter = rateLimit({
     data: null,
     timestamp: Date.now()
   },
-    standardHeaders: false, // 不返回RateLimit头部信息
-  legacyHeaders: false, // 不使用x-rateLimit头部
+  standardHeaders: false,
+  legacyHeaders: false,
 });
 
 module.exports = {

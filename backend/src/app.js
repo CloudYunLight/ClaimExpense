@@ -1,6 +1,6 @@
 const express = require('express');
 const cors = require('cors');
-const config = require('ini').parse(require('fs').readFileSync('../config/config.ini', 'utf-8'));
+const config = require('./utils/config');
 const logger = require('./utils/logger');
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
 const { limiter } = require('./middleware/rateLimiter');

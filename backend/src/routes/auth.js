@@ -2,9 +2,11 @@ const express = require('express');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
-const config = require('ini').parse(require('fs').readFileSync('../config/config.ini', 'utf-8'));
 const { loginLimiter } = require('../middleware/rateLimiter');
 const logger = require('../utils/logger');
+const DatabaseUtil = require('../utils/database');
+const config = require('../utils/config');
+
 
 const router = express.Router();
 
@@ -148,8 +150,7 @@ router.post('/ChangePassword', async (req, res) => {
     
     // 更新密码
     const updateQuery = 'UPDATE users SET password = ? WHERE user_id = ?';
-    const db = require('../models/index');
-    await db.execute(updateQuery, [hashedNewPassword, userId]);
+    await DatabaseUtil.execute(updateQuery, [hashedNewPassword, userId]);
     
     // 记录密码修改日志
     logger.info('User password changed', {
