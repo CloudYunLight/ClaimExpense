@@ -2,8 +2,8 @@ const express = require('express');
 const cors = require('cors');
 const config = require('./utils/config');
 const logger = require('./utils/logger');
-const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
-const { limiter } = require('./middleware/rateLimiter');
+const { errorHandler, notFoundHandler } = require('./middleware/errorHandler.mid');
+const { limiter } = require('./middleware/rateLimiter.mid');
 
 const app = express();
 
@@ -139,7 +139,7 @@ app.all('/health', (req, res) => {
 
 // 导入路由
 const authRoutes = require('./routes/auth');
-const userRoutes = require('./routes/user');
+const userRoutes = require('./routes/userAdmin');
 const listRoutes = require('./routes/list');
 const billRoutes = require('./routes/bill');
 const dashboardRoutes = require('./routes/dashboard');

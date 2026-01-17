@@ -1,4 +1,4 @@
-const mysql = require('mysql2');
+const mysql = require('mysql2/promise');  // 哈！promise版本的才支持我的写法
 const config = require('./config');
 const logger = require('./logger');
 
@@ -88,10 +88,9 @@ class DatabaseUtil {
   static async testConnection() {
     try {
       const connection = await pool.getConnection();
-      await connection.ping();
+      await connection.ping();    // 测试连接
       connection.release();
-      console.log('数据库连接成功');
-      logger.log('数据库连接成功');
+      logger.info('数据库连接成功');
       return true;
     } catch (error) {
       console.error('数据库连接失败:', error);

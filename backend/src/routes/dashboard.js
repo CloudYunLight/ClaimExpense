@@ -1,5 +1,5 @@
 const express = require('express');
-const { authenticateToken } = require('../middleware/auth');
+const { authenticateToken } = require('../middleware/auth.mid');
 const DatabaseUtil = require('../utils/database'); // 数据库操作
 
 const router = express.Router();

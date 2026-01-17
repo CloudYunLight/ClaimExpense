@@ -1,6 +1,7 @@
 const config = require('./utils/config');
 const app = require('./app');
 const logger = require('./utils/logger');
+const DatabaseUtil = require('./utils/database');
 
 const PORT = config.server.port ;
 
@@ -10,4 +11,6 @@ app.listen(PORT, '0.0.0.0', () => {
   
   // 输出当前日志级别信息
   logger.info(`Current log level: ${logger.level}`);
+
+  DatabaseUtil.testConnection();
 });

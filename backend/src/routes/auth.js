@@ -2,19 +2,20 @@ const express = require('express');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
-const { loginLimiter } = require('../middleware/rateLimiter');
+const { loginLimiter } = require('../middleware/rateLimiter.mid');
 const logger = require('../utils/logger');
 const DatabaseUtil = require('../utils/database');
 const config = require('../utils/config');
+const { authenticateToken } = require('../middleware/auth.mid');
 
 
 const router = express.Router();
 
 // 用户登录 - 应用登录限流中间件
-router.post('/login', loginLimiter, async (req, res) => {
+router.post('/login', loginLimiter, authenticateToken, async (req, res) => {
   try {
     const { username, password } = req.body;
-    
+
     // 验证输入参数
     if (!username || !password) {
       return res.status(400).json({
@@ -24,9 +25,12 @@ router.post('/login', loginLimiter, async (req, res) => {
         timestamp: Date.now()
       });
     }
-    
+
     // 查找用户
+
     const user = await User.findByUsername(username);
+    console.log(user);
+
     if (!user) {
       return res.status(401).json({
         code: 401,
@@ -35,7 +39,7 @@ router.post('/login', loginLimiter, async (req, res) => {
         timestamp: Date.now()
       });
     }
-    
+
     // 检查账户状态
     if (user.status === 0) {
       return res.status(401).json({
@@ -45,9 +49,9 @@ router.post('/login', loginLimiter, async (req, res) => {
         timestamp: Date.now()
       });
     }
-    
+
     // 验证密码
-    const isValidPassword = await User.validatePassword(password, user.password);
+    const isValidPassword = await User.validatePassword(password, user.password); // password 是输入；user.password 是数据库中的
     if (!isValidPassword) {
       return res.status(401).json({
         code: 401,
@@ -56,7 +60,7 @@ router.post('/login', loginLimiter, async (req, res) => {
         timestamp: Date.now()
       });
     }
-    
+
     // 记录登录成功的日志
     logger.info('User logged in successfully', {
       userId: user.user_id,
@@ -64,14 +68,15 @@ router.post('/login', loginLimiter, async (req, res) => {
       ip: req.ip,
       timestamp: new Date().toISOString()
     });
-    
+
     // 生成JWT Token
+    // 库会自动在 payload 中添加一个 exp（expiration time）字段
     const token = jwt.sign(
       { userId: user.user_id, username: user.username, role: user.role },
       config.jwt.secret,
       { expiresIn: config.jwt.expiresIn }
     );
-    
+
     // 返回成功响应
     res.status(200).json({
       code: 200,
@@ -100,11 +105,13 @@ router.post('/login', loginLimiter, async (req, res) => {
 });
 
 // 修改密码
-router.post('/ChangePassword', async (req, res) => {
+router.post('/ChangePassword', authenticateToken, async (req, res) => {
   try {
     const { oldPassword, newPassword } = req.body;
-    const userId = req.user ? req.user.userId : null; // 假设JWT中间件已验证并添加用户信息到req.user
-    
+    const userId = req.user ? req.user.userId : null;
+
+    console.log(req.user)
+
     if (!userId) {
       return res.status(401).json({
         code: 401,
@@ -113,7 +120,7 @@ router.post('/ChangePassword', async (req, res) => {
         timestamp: Date.now()
       });
     }
-    
+
     if (!oldPassword || !newPassword) {
       return res.status(400).json({
         code: 400,
@@ -122,7 +129,7 @@ router.post('/ChangePassword', async (req, res) => {
         timestamp: Date.now()
       });
     }
-    
+
     // 获取用户信息
     const user = await User.findById(userId);
     if (!user) {
@@ -133,7 +140,7 @@ router.post('/ChangePassword', async (req, res) => {
         timestamp: Date.now()
       });
     }
-    
+
     // 验证旧密码
     const isValidOldPassword = await User.validatePassword(oldPassword, user.password);
     if (!isValidOldPassword) {
@@ -144,14 +151,14 @@ router.post('/ChangePassword', async (req, res) => {
         timestamp: Date.now()
       });
     }
-    
+
     // 加密新密码
     const hashedNewPassword = await bcrypt.hash(newPassword, parseInt(config.bcrypt.saltRounds));
-    
+
     // 更新密码
     const updateQuery = 'UPDATE users SET password = ? WHERE user_id = ?';
     await DatabaseUtil.execute(updateQuery, [hashedNewPassword, userId]);
-    
+
     // 记录密码修改日志
     logger.info('User password changed', {
       userId: user.user_id,
@@ -159,7 +166,7 @@ router.post('/ChangePassword', async (req, res) => {
       ip: req.ip,
       timestamp: new Date().toISOString()
     });
-    
+
     res.status(200).json({
       code: 200,
       msg: '密码修改成功',
@@ -178,14 +185,14 @@ router.post('/ChangePassword', async (req, res) => {
 });
 
 // 用户登出 - 对于JWT，通常在客户端清除Token即可
-router.post('/logout', (req, res) => {
+router.post('/logout', authenticateToken, (req, res) => {
   // 记录登出日志
   logger.info('User logged out', {
     userId: req.user ? req.user.userId : 'unknown',
     ip: req.ip,
     timestamp: new Date().toISOString()
   });
-  
+
   res.status(200).json({
     code: 200,
     msg: '登出成功',
@@ -195,10 +202,10 @@ router.post('/logout', (req, res) => {
 });
 
 // 获取当前登录用户信息
-router.get('/me', async (req, res) => {
+router.get('/me', authenticateToken, async (req, res) => {
   try {
     const userId = req.user ? req.user.userId : null;
-    
+
     if (!userId) {
       return res.status(401).json({
         code: 401,
@@ -207,7 +214,7 @@ router.get('/me', async (req, res) => {
         timestamp: Date.now()
       });
     }
-    
+
     const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json({
@@ -217,7 +224,7 @@ router.get('/me', async (req, res) => {
         timestamp: Date.now()
       });
     }
-    
+
     res.status(200).json({
       code: 200,
       msg: '查询成功',
