@@ -12,7 +12,7 @@ const { authenticateToken } = require('../middleware/auth.mid');
 const router = express.Router();
 
 // 用户登录 - 应用登录限流中间件
-router.post('/login', loginLimiter, authenticateToken, async (req, res) => {
+router.post('/login', loginLimiter, async (req, res) => {
   try {
     const { username, password } = req.body;
 

@@ -19,6 +19,20 @@ router.post('/CreateLists', authenticateToken, async (req, res) => {
       });
     }
 
+    // 检查是否已存在相同的活动名称和创建者，实现幂等性
+    const existingList = await ReimbursementList.getByActivityNameAndCreator(activityName, userId);
+    if (existingList) {
+      // 如果已存在相同的清单，则直接返回已存在的清单ID，实现幂等性
+      return res.status(200).json({
+        code: 200,
+        msg: '近三小时内有同账户下有同名清单，请检查：现有清单ID',
+        data: {
+          listId: existingList.listId
+        },
+        timestamp: Date.now()
+      });
+    }
+
     const result = await ReimbursementList.create({
       activityName,
       creatorId: userId
@@ -51,7 +65,6 @@ router.get('/SearchLists', authenticateToken, async (req, res) => {
       pageNum = 1, 
       pageSize = 10, 
       activityName, 
-      activityType, // 活动类型在数据库中未定义，暂不处理
       status, 
       startTime, 
       endTime 
@@ -197,7 +210,7 @@ router.post('/:listId/status', authenticateToken, async (req, res) => {
 });
 
 // 删除清单
-router.delete('/ListsDelete/:listId', authenticateToken, async (req, res) => {
+router.post('/ListsDelete/:listId', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.userId;
     const listId = parseInt(req.params.listId);
