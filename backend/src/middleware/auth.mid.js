@@ -1,9 +1,10 @@
 const jwt = require('jsonwebtoken');
-const config = require('ini').parse(require('fs').readFileSync('../config/config.ini', 'utf-8'));
+const config = require('../utils/config');
+const logger = require('../utils/logger');
 
 const authenticateToken = (req, res, next) => {
   // 从请求头获取Authorization
-  const authHeader = req.headers['authorization'];
+  const authHeader = req.headers['authorization'];  // 获取Authorization头，需要有Bearer+空格 分隔开
   const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
 
   if (!token) {
@@ -15,8 +16,10 @@ const authenticateToken = (req, res, next) => {
     });
   }
 
+  // 自动校验令牌和过期时间
   jwt.verify(token, config.jwt.secret, (err, user) => {
     if (err) {
+      logger.info('[jwt.verify]验证过程报错', err);
       return res.status(403).json({
         code: 403,
         msg: '令牌无效或已过期',
@@ -30,8 +33,9 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
-// 检查用户角色是否为管理员
+// 检查用户角色是否为管理员；这个中间件会要求同时引用authenticateToken 中间件
 const requireAdminRole = (req, res, next) => {
+  console.debug(req.user)
   if (req.user.role !== 1) {
     return res.status(403).json({
       code: 403,

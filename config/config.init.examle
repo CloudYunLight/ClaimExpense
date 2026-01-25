@@ -8,3 +8,22 @@ password = your_password_here
 ; 数据库配置
 database = reimbursement_system
 charset = utf8mb4
+
+
+[server]
+;后端服务器配置
+port=3000
+host=0.0.0.0
+
+[jwt]
+;JWT 配置
+secret=secret_key
+expiresIn=24h
+
+[bcrypt]
+;bcrypt 配置
+saltRounds=10
+
+[log]
+;日志级别
+level=info;debug

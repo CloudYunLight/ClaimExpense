@@ -1,29 +1,36 @@
-const db = require('./index');
+const DatabaseUtil = require('../utils/database');
 const bcrypt = require('bcryptjs');
+const config = require('../utils/config');
+const crypto = require('crypto');  // 添加：引入Node.js内置的crypto模块
 
 // 用户表结构定义
 const User = {
   // 创建用户
   create: async (userData) => {
     const { username, password, realName, role = 0 } = userData;
-    const hashedPassword = await bcrypt.hash(password, parseInt(process.env.BCRYPT_SALT_ROUNDS || 10));
+    const hashedPassword = await bcrypt.hash(password, parseInt(config.bcrypt.saltRounds));
     const query = 'INSERT INTO users (username, password, real_name, role, status) VALUES (?, ?, ?, ?, ?)';
     
-    const [result] = await db.execute(query, [username, hashedPassword, realName, role, 1]);
+    const result = await DatabaseUtil.execute(query, [username, hashedPassword, realName, role, 1]);
+    
     return { userId: result.insertId };
   },
 
   // 根据用户名查找用户
   findByUsername: async (username) => {
     const query = 'SELECT * FROM users WHERE username = ?';
-    const [rows] = await db.execute(query, [username]);
-    return rows[0];
+
+    const rows = await DatabaseUtil.execute(query, [username]);
+    // 下面的编码，用于解决不存在的用户时，返回null（避免返回空，造成数组访问出错，undefined）
+    // console.log(rows)
+    return rows && rows.length > 0 ? rows[0] : null;
   },
 
   // 根据ID查找用户
   findById: async (userId) => {
     const query = 'SELECT * FROM users WHERE user_id = ?';
-    const [rows] = await db.execute(query, [userId]);
+    const rows = await DatabaseUtil.execute(query, [userId]);
+    // console.log(rows)
     return rows[0];
   },
 
@@ -34,20 +41,21 @@ const User = {
 
   // 获取用户列表（分页）
   getUsers: async (pageNum = 1, pageSize = 10, filters = {}) => {
-    const { username, realName, status } = filters;
-    const offset = (pageNum - 1) * pageSize;
+    const { username, realName, status } = filters; // 获取过滤条件
+    const offset = (pageNum - 1) * pageSize;  // 计算偏移量
     
+    // 实在的查询用户内容
     let query = 'SELECT user_id as userId, username, real_name as realName, role, status, create_time as createTime FROM users WHERE 1=1';
-    const params = [];
+    let params = [];  // 存储查询参数
     
     if (username) {
       query += ' AND username LIKE ?';
-      params.push(`%${username}%`);
+      params.push(`%${username}%`); // 粗匹配
     }
     
     if (realName) {
       query += ' AND real_name LIKE ?';
-      params.push(`%${realName}%`);
+      params.push(`%${realName}%`); // 粗匹配
     }
     
     if (status !== undefined && status !== null) {
@@ -56,10 +64,11 @@ const User = {
     }
     
     query += ' ORDER BY create_time DESC LIMIT ? OFFSET ?';
-    params.push(parseInt(pageSize), parseInt(offset));
+    params.push(parseInt(pageSize), parseInt(offset));  // 分页
     
-    const countQuery = 'SELECT COUNT(*) as total FROM users WHERE 1=1';
-    const countParams = [];
+    // 返回总个数
+    let countQuery = 'SELECT COUNT(*) as total FROM users WHERE 1=1';  // 改为let而不是const
+    let countParams = [];
     
     if (username) {
       countQuery += ' AND username LIKE ?';
@@ -76,11 +85,16 @@ const User = {
       countParams.push(status);
     }
     
-    const [countResult] = await db.execute(countQuery, countParams);
-    const [rows] = await db.execute(query, params);
+    const countResult = await DatabaseUtil.execute(countQuery, countParams);  // 解构返回的结果
+    // console.log("数量查询结果",countResult)
+    // 要对返回为空的情况做处理
+    const total = countResult.length > 0 ? countResult[0].total : 0;
+
+    const rows = await DatabaseUtil.execute(query, params);
+    // console.log("查询结果",rows)
     
     return {
-      total: countResult[0].total,
+      total: total,  // 使用之前计算好的total变量
       pageNum: parseInt(pageNum),
       pageSize: parseInt(pageSize),
       records: rows
@@ -90,25 +104,22 @@ const User = {
   // 更新用户状态
   updateUserStatus: async (userId, status) => {
     const query = 'UPDATE users SET status = ? WHERE user_id = ?';
-    const [result] = await db.execute(query, [status, userId]);
+    const result = await DatabaseUtil.execute(query, [status, userId]);
+    // console.log(result);
     return result.affectedRows > 0;
   },
 
   // 重置用户密码
   resetUserPassword: async (userId) => {
     // 生成随机密码
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()';
-    let newPassword = '';
-    for (let i = 0; i < 10; i++) {
-      newPassword += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
+    let newPassword = crypto.randomBytes(4).toString('hex');  // 修改：使用4字节生成8位十六进制字符
     
-    const hashedPassword = await bcrypt.hash(newPassword, parseInt(process.env.BCRYPT_SALT_ROUNDS || 10));
+    const hashedPassword = await bcrypt.hash(newPassword, parseInt(config.bcrypt.saltRounds));
     const query = 'UPDATE users SET password = ? WHERE user_id = ?';
-    const [result] = await db.execute(query, [hashedPassword, userId]);
+    const result = await DatabaseUtil.execute(query, [hashedPassword, userId]);
     
     return {
-      success: result.affectedRows > 0,
+      success: result? (result.affectedRows > 0): false,
       newPassword
     };
   },
@@ -116,7 +127,7 @@ const User = {
   // 检查用户名是否已存在
   checkUsernameExists: async (username) => {
     const query = 'SELECT COUNT(*) as count FROM users WHERE username = ?';
-    const [rows] = await db.execute(query, [username]);
+    const rows = await DatabaseUtil.execute(query, [username]);
     return rows[0].count > 0;
   }
 };

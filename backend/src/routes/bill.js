@@ -1,6 +1,7 @@
 const express = require('express');
-const { authenticateToken } = require('../middleware/auth');
+const { authenticateToken } = require('../middleware/auth.mid');
 const Bill = require('../models/Bill');
+const ReimbursementList = require('../models/ReimbursementList');
 
 const router = express.Router();
 
@@ -38,6 +39,18 @@ router.post('/', authenticateToken, async (req, res) => {
       });
     }
 
+    
+    // 插入前验证listId存在
+    const list = await ReimbursementList.getById(listId, userId);
+    if (!list) {
+      return res.status(403).json({
+        code: 403,
+        msg: '无法找到对应的报销清单，或未授权',
+        data: null,
+        timestamp: Date.now()
+      });
+    }
+
     const billData = {
       listId,
       paymentMethod,
@@ -57,6 +70,15 @@ router.post('/', authenticateToken, async (req, res) => {
       timestamp: Date.now()
     });
   } catch (error) {
+    if (error.message === '3小时内已存在相同的账单数据') {
+      return res.status(400).json({
+        code: 400,
+        msg: '已存在相同的账单数据，请检查后重试',
+        data: null,
+        timestamp: Date.now()
+      });
+    }
+
     console.error('Add bill error:', error);
     res.status(500).json({
       code: 500,
@@ -74,10 +96,19 @@ router.post('/:billId', authenticateToken, async (req, res) => {
     const { paymentMethod, amount, remark } = req.body;
     const userId = req.user.userId;
 
+  if (!Number.isInteger(billId) || billId <= 0) {
+    return res.status(400).json({
+      code: 400,
+      msg: '账单ID必须为大于0的整数，请检查参数或方法',
+      data: null,
+      timestamp: Date.now()
+    });
+  }
+
     if (!billId) {
       return res.status(400).json({
         code: 400,
-        msg: '账单ID不能为空',
+        msg: '账单ID不能为空？？？',
         data: null,
         timestamp: Date.now()
       });

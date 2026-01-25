@@ -284,12 +284,15 @@ class DatabaseInitializer:
                 `amount` DECIMAL(10,2) NOT NULL COMMENT '金额',
                 `payer_id` INT NOT NULL COMMENT '支付人ID',
                 `create_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '账单创建时间',
+                `update_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '状态更新时间',
                 `remark` VARCHAR(200) NULL COMMENT '账单备注（可选，如发票号）',
+                
                 PRIMARY KEY (`bill_id`),
                 KEY `idx_list_id` (`list_id`),
                 KEY `idx_payer_id` (`payer_id`),
                 KEY `idx_payment_method` (`payment_method`),
                 KEY `idx_create_time` (`create_time`),
+                KEY `idx_update_time` (`update_time`),
                 CONSTRAINT `fk_bills_list`
                     FOREIGN KEY (`list_id`)
                     REFERENCES `reimbursement_lists` (`list_id`)

@@ -1,6 +1,6 @@
 const express = require('express');
-const { authenticateToken } = require('../middleware/auth');
-const db = require('../models/index');
+const { authenticateToken } = require('../middleware/auth.mid');
+const DatabaseUtil = require('../utils/database'); // 数据库操作
 
 const router = express.Router();
 
@@ -28,15 +28,14 @@ router.get('/summary', authenticateToken, async (req, res) => {
 
     // 总清单数
     const totalListQuery = `SELECT COUNT(*) as count FROM reimbursement_lists WHERE creator_id = ? ${dateCondition}`;
-    const [totalListResult] = await db.execute(totalListQuery, params);
-
+    const totalListResult = await DatabaseUtil.execute(totalListQuery,params)
     // 总金额
     const totalAmountQuery = `SELECT COALESCE(SUM(total_amount), 0) as total FROM reimbursement_lists WHERE creator_id = ? ${dateCondition}`;
-    const [totalAmountResult] = await db.execute(totalAmountQuery, params);
+    const totalAmountResult = await DatabaseUtil.execute(totalAmountQuery, params);
 
     // 不同状态的清单数
     const statusCountQuery = `SELECT status, COUNT(*) as count FROM reimbursement_lists WHERE creator_id = ? ${dateCondition} GROUP BY status`;
-    const [statusCountResults] = await db.execute(statusCountQuery, params);
+    const statusCountResults = await DatabaseUtil.execute(statusCountQuery, params);
 
     // 初始化各种状态的数量
     let unrepaidListCount = 0;
@@ -44,7 +43,7 @@ router.get('/summary', authenticateToken, async (req, res) => {
     let repaidListCount = 0;
 
     statusCountResults.forEach(row => {
-      switch(row.status) {
+      switch (row.status) {
         case 0: // 未报销
           unrepaidListCount = row.count;
           break;
@@ -59,7 +58,7 @@ router.get('/summary', authenticateToken, async (req, res) => {
 
     // 已回款金额
     const repaidAmountQuery = `SELECT COALESCE(SUM(total_amount), 0) as total FROM reimbursement_lists WHERE creator_id = ? AND status = 2 ${dateCondition.replace(/creator_id/g, 'rl.creator_id')}`;
-    const [repaidAmountResult] = await db.execute(repaidAmountQuery, params);
+    const repaidAmountResult = await DatabaseUtil.execute(repaidAmountQuery, params);
 
     const totalListCount = totalListResult[0].count;
     const totalAmount = parseFloat(totalAmountResult[0].total || 0);
@@ -123,13 +122,13 @@ router.get('/status', authenticateToken, async (req, res) => {
       WHERE rl.creator_id = ? ${dateCondition}
       GROUP BY rl.status
     `;
-    
-    const [results] = await db.execute(statusDistributionQuery, params);
+
+    const results = await DatabaseUtil.execute(statusDistributionQuery, params);
 
     // 计算总数和总金额用于百分比计算
     const totalQuery = `SELECT COUNT(*) as totalCount, COALESCE(SUM(total_amount), 0) as totalAmount FROM reimbursement_lists WHERE creator_id = ? ${dateCondition}`;
-    const [totalResult] = await db.execute(totalQuery, params);
-    
+    const totalResult = await DatabaseUtil.execute(totalQuery, params);
+
     const totalCount = totalResult[0].totalCount;
     const totalAmount = parseFloat(totalResult[0].totalAmount || 0);
 

@@ -1,6 +1,14 @@
 const logger = require('../utils/logger');
 
+// 只要声明了这四个参数， express会自动调用这个函数，用于处理错误
+/*
+  使用方法
+  const err = new Error('Something went wrong!');
+  err.status = 500;
+  next(err); // 传递错误给错误处理中间件
+ */
 const errorHandler = (err, req, res, next) => {
+  console.log("err01");
   // 记录错误日志
   logger.error({
     message: err.message,
@@ -12,6 +20,7 @@ const errorHandler = (err, req, res, next) => {
     timestamp: new Date().toISOString()
   });
 
+  // 现在这个根据err.name 捕获错误的功能还无法正常使用
   // 根据错误类型返回适当的错误响应
   if (err.name === 'ValidationError') {
     return res.status(400).json({
@@ -48,6 +57,8 @@ const notFoundHandler = (req, res, next) => {
     data: null,
     timestamp: Date.now()
   });
+  // 404 不会进入 errorHandler 中间件
+  // 但是 在app.js 的`res.on`会捕获 >400 的状态码
 };
 
 module.exports = {
