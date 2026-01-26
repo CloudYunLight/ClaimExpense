@@ -1,3 +1,5 @@
+// tsconfig.app.json（应用代码配置）
+// 专门用于 浏览器端 / 前端源码 的 TypeScript 配置
 {
   "extends": "@vue/tsconfig/tsconfig.dom.json",
   "compilerOptions": {

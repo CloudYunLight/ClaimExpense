@@ -1,3 +1,5 @@
+// main.ts —— 应用入口执行文件；整个前端应用的启动起点。
+
 import { createApp } from 'vue'
 import App from './App.vue'
 import router from './router'
