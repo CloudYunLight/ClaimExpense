@@ -1,6 +1,7 @@
 const mysql = require('mysql2/promise');  // 哈！promise版本的才支持我的写法
 const config = require('./config');
 const logger = require('./logger');
+const bcrypt = require('bcryptjs');
 
 const pool = mysql.createPool({
   host: config.database.host,
@@ -95,6 +96,38 @@ class DatabaseUtil {
     } catch (error) {
       console.error('数据库连接失败:', error);
       logger.error('数据库连接失败:', error);
+      return false;
+    }
+  }
+  
+  /**
+   * 初始化默认管理员用户
+   * @returns {Promise<boolean>} 是否创建了管理员用户
+   */
+  static async initializeAdminUser() {
+    try {
+      // 检查用户表是否为空
+      const countResult = await this.execute('SELECT COUNT(*) as count FROM users');
+      const userCount = countResult[0].count;
+      
+      if (userCount === 0) {
+        // 表为空，创建默认管理员用户
+        const hashedPassword = await bcrypt.hash('root', parseInt(config.bcrypt.saltRounds));
+        
+        await this.execute(
+          'INSERT INTO users (username, password, real_name, role, status) VALUES (?, ?, ?, ?, ?)',
+          ['admin', hashedPassword, 'Administrator_default', 1, 1]
+        );
+        
+        logger.info('默认管理员用户已创建 - 用户名: admin, 密码: root');
+        return true;
+      } else {
+        logger.info(`用户表已有 ${userCount} 个用户，跳过初始化管理员账户`);
+        return false;
+      }
+    } catch (error) {
+      console.error('初始化管理员用户失败:', error);
+      logger.error('初始化管理员用户失败:', error);
       return false;
     }
   }
