@@ -1,33 +1,67 @@
+/* 
+  .app-shell：整个应用的外壳容器（通常包裹侧边栏 + 主内容区）
+  使用 CSS Grid 实现两栏布局：左侧固定宽度侧边栏，右侧自适应主内容区
+*/
 .app-shell {
   display: grid;
+  /* 左侧 280px（侧边栏），右侧 1fr（剩余空间） */
   grid-template-columns: 280px 1fr;
+  /* 至少占满视口高度，避免内容过短时布局塌陷 */
   min-height: 100vh;
-  background: radial-gradient(circle at left, rgba(59, 130, 246, 0.06), transparent 45%),
+
+  /* 背景使用两个径向渐变，营造微妙的装饰性光效：
+     - 左侧：淡蓝色光晕（品牌主色 #3b82f6 的透明版）
+     - 右侧：淡橙色光晕（强调色 #f97316 的透明版）
+     这种设计增强视觉层次，但不干扰内容阅读。
+  */
+  background: 
+    radial-gradient(circle at left, rgba(59, 130, 246, 0.06), transparent 45%),
     radial-gradient(circle at right, rgba(249, 115, 22, 0.08), transparent 40%);
 }
 
+/* 
+  .app-shell__content：主内容区域容器（不含侧边栏）
+  使用 Flex 布局，确保 footer 能“粘”在底部（如果需要）
+*/
 .app-shell__content {
   display: flex;
-  flex-direction: column;
-  min-height: 100vh;
+  flex-direction: column; /* 垂直堆叠子元素（如 main, footer） */
+  min-height: 100vh; /* 保证即使内容少也能撑满屏幕；vh 是视口高度单位，100vh = 浏览器窗口的 100% 高度 */
 }
 
+/* 
+  <main> 标签：页面主要内容区域
+  使用“玻璃拟态”（Frosted Glass）效果：
+    - 半透明白色背景（rgba(255,255,255,0.82)）
+    - 高斯模糊（backdrop-filter: blur(12px)）
+  这种效果在 macOS / iOS 风格 UI 中常见，营造轻盈、现代感。
+*/
 main {
-  flex: 1;
-  padding: 2rem;
+  flex: 1; /* 占据父容器剩余所有空间 */
+  padding: 2rem; /* 内边距提供呼吸感 */
+
+  /* 半透明背景 + 模糊，形成毛玻璃效果 */
   background: rgba(255, 255, 255, 0.82);
-  backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px); /* 注意：需浏览器支持（Chrome/Firefox/Safari） */
 }
 
+/* 
+  .container-card：内容卡片容器
+  使用设计系统变量（来自 :root）确保主题一致性
+*/
 .container-card {
-  background: var(--surface);
-  border-radius: var(--radius-xl);
+  background: var(--surface); /* 亮色为白，暗色为深灰蓝 */
+  border-radius: var(--radius-xl); /* 大圆角，现代感 */
   padding: 1.5rem;
-  box-shadow: var(--shadow-card);
+  box-shadow: var(--shadow-card); /* 柔和阴影，提升层级 */
 }
 
+/* 
+  响应式断点：当屏幕宽度 ≤ 960px（如平板或小屏笔记本）
+  将两栏布局变为单列（隐藏/折叠侧边栏，或将其移至顶部/抽屉）
+*/
 @media (max-width: 960px) {
   .app-shell {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr; /* 只有一列，侧边栏和主内容纵向堆叠 */
   }
 }

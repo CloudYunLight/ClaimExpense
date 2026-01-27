@@ -1,21 +1,30 @@
+/* 定义根元素的基础样式和CSS变量 */
 :root {
+  /* 设置字体族，优先使用Manrope字体，其次是系统默认的无衬线字体 */
   font-family: "Manrope", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  /* 设置默认文字颜色 */
   color: #0f172a;
+  /* 设置页面背景色 */
   background-color: #f6f7fb;
+  /* 设置字母间距 */
   letter-spacing: 0.01em;
 }
 
+/* 重置所有元素的盒模型，包含边框、伪元素 */
 *, *::before, *::after {
   box-sizing: border-box;
 }
 
+/* 设置body元素的基础样式 */
 body {
-  margin: 0;
-  min-height: 100vh;
+  margin: 0; /* 移除默认外边距 */
+  min-height: 100vh; /* 最小高度为视窗高度 */
+  /* 设置径向渐变背景 */
   background: radial-gradient(circle at top, #f9fbff, #eef2ff);
-  color: inherit;
+  color: inherit; /* 继承颜色 */
 }
 
+/* 确保表单控件继承父元素字体 */
 button,
 input,
 select,
@@ -23,12 +32,14 @@ textarea {
   font: inherit;
 }
 
+/* 链接样式设置 */
 a {
-  color: inherit;
-  text-decoration: none;
+  color: inherit; /* 继承父元素颜色 */
+  text-decoration: none; /* 移除下划线 */
 }
 
+/* 图片响应式处理 */
 img {
-  max-width: 100%;
-  display: block;
+  max-width: 100%; /* 限制最大宽度为容器宽度 */
+  display: block; /* 设置为块级元素 */
 }

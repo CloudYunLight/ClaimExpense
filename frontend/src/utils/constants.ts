@@ -7,6 +7,7 @@ export interface StatusMeta {
   color: string
 }
 
+// 报销状态元信息
 export const STATUS_OPTIONS: StatusMeta[] = [
   { value: 0, label: '未报销', description: '待整理票据', color: '#f97316' },
   { value: 1, label: '已上交文件', description: '等待财务审批', color: '#facc15' },
@@ -20,6 +21,7 @@ export const PAYMENT_METHODS = [
   { value: 3, label: '需要转交' }
 ]
 
+// 导航栏项目定义
 interface NavigationItem {
   label: string
   routeName: string
@@ -34,6 +36,7 @@ export const NAV_ITEMS: NavigationItem[] = [
   { label: '用户管理', routeName: 'admin-users', icon: 'users', roles: ['admin'] }
 ]
 
+// 安全地根据 status 值查找对应的 StatusMeta 对象
 export const getStatusMeta = (status: ReimbursementStatus): StatusMeta => {
   const match = STATUS_OPTIONS.find((item) => item.value === status)
   return match ?? STATUS_OPTIONS[0]!
