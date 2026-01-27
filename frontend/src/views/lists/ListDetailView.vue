@@ -1,6 +1,9 @@
 <template>
   <div v-if="loading" class="loading">加载清单详情...</div>
   <div v-else-if="detail" class="detail-grid">
+    <div v-if="refreshing" class="refresh-indicator">
+      <span class="pulse-dot" /> 数据同步中...
+    </div>
     <section class="info-card">
       <header>
         <h2>{{ detail.listInfo.activityName }}</h2>
@@ -22,7 +25,7 @@
       </dl>
       <label class="status-select">
         调整状态
-        <select v-model.number="statusDraft" @change="updateStatus">
+        <select class="status-dropdown status-dropdown--inline" v-model.number="statusDraft" @change="updateStatus">
           <option v-for="option in statusOptions" :key="option.value" :value="option.value">
             {{ option.label }}
           </option>
@@ -96,44 +99,86 @@ import { STATUS_OPTIONS as statusOptions, PAYMENT_METHODS as paymentMethods } fr
 import { formatCurrency, formatDateTime } from '@/utils/format'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
-import type { BillItem, ReimbursementListDetail } from '@/types/list'
+import type { BillItem, ReimbursementListDetail, ReimbursementStatus } from '@/types/list'
 import { useToast } from '@/composables/useToast'
 
 const route = useRoute()
 const toast = useToast()
 
 const loading = ref(true)
+const refreshing = ref(false)
 const detail = ref<ReimbursementListDetail | null>(null)
-const statusDraft = ref(0)
+const statusDraft = ref<ReimbursementStatus>(0)
+
+const defaultPaymentMethod = paymentMethods[0]?.value ?? 0
 
 const billForm = reactive({
   billId: null as number | null,
-  paymentMethod: 0,
+  paymentMethod: defaultPaymentMethod,
   amount: 0,
   remark: ''
 })
 
-const listId = ref(Number(route.params.listId))
+const parseListId = (value: unknown): number | null => {
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : null
+}
 
-const loadDetail = async () => {
-  loading.value = true
+const listId = ref<number | null>(parseListId(route.params.listId))
+
+const loadDetail = async ({ silent = false } = {}) => {
+  const targetId = listId.value
+
+  if (silent) {
+    refreshing.value = true
+  } else {
+    loading.value = true
+  }
+
+  if (targetId === null) {
+    detail.value = null
+    toast.error('未找到对应的清单')
+    if (silent) {
+      refreshing.value = false
+    } else {
+      loading.value = false
+    }
+    return
+  }
+
   try {
-    const data = await listApi.getListDetail(listId.value)
-    detail.value = data
-    statusDraft.value = data.listInfo.status
+    const data = await listApi.getListDetail(targetId)
+    if (!data?.listInfo) {
+      throw new Error('清单信息不存在或已被删除')
+    }
+    const normalized: ReimbursementListDetail = {
+      listInfo: data.listInfo,
+      bills: Array.isArray(data.bills) ? data.bills : []
+    }
+    detail.value = normalized
+    statusDraft.value = normalized.listInfo.status
   } catch (error) {
-    toast.error('无法获取清单详情')
+    if (!silent) {
+      detail.value = null
+    }
+    const message = error instanceof Error ? error.message : '无法获取清单详情'
+    toast.error(message)
   } finally {
-    loading.value = false
+    if (silent) {
+      refreshing.value = false
+    } else {
+      loading.value = false
+    }
   }
 }
 
 const updateStatus = async () => {
   if (!detail.value) return
+  if (statusDraft.value === detail.value.listInfo.status) return
   try {
-    await listApi.updateListStatus(detail.value.listInfo.listId, { status: statusDraft.value as 0 | 1 | 2 })
+    await listApi.updateListStatus(detail.value.listInfo.listId, { status: statusDraft.value })
     toast.success('状态已更新')
-    loadDetail()
+    await loadDetail({ silent: true })
   } catch (error) {
     toast.error('状态更新失败')
     statusDraft.value = detail.value.listInfo.status
@@ -160,7 +205,7 @@ const submitBill = async () => {
       toast.success('账单已添加')
     }
     resetBillForm()
-    loadDetail()
+    await loadDetail({ silent: true })
   } catch (error) {
     toast.error('账单保存失败')
   }
@@ -175,7 +220,7 @@ const editBill = (bill: BillItem) => {
 
 const resetBillForm = () => {
   billForm.billId = null
-  billForm.paymentMethod = 0
+  billForm.paymentMethod = defaultPaymentMethod
   billForm.amount = 0
   billForm.remark = ''
 }
@@ -185,7 +230,7 @@ const removeBill = async (billId: number) => {
   try {
     await billApi.deleteBill(billId)
     toast.info('账单已删除')
-    loadDetail()
+    await loadDetail({ silent: true })
   } catch (error) {
     toast.error('账单删除失败')
   }
@@ -196,7 +241,7 @@ const methodLabel = (value: number) => paymentMethods.find((item) => item.value 
 watch(
   () => route.params.listId,
   (next) => {
-    listId.value = Number(next)
+    listId.value = parseListId(next)
     loadDetail()
   }
 )
@@ -260,10 +305,8 @@ dl dd {
   margin-top: 1.5rem;
 }
 
-.status-select select {
-  border-radius: 12px;
-  border: 1px solid rgba(15, 23, 42, 0.15);
-  padding: 0.5rem;
+.status-dropdown--inline {
+  width: 100%;
 }
 
 .bill-form {
@@ -328,5 +371,37 @@ dl dd {
 .actions .warn {
   background: rgba(220, 38, 38, 0.15);
   color: #991b1b;
+}
+
+.refresh-indicator {
+  grid-column: 1 / -1;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.pulse-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--brand-primary);
+  animation: pulse 1.4s infinite ease-in-out;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 0.2;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0.2;
+    transform: scale(0.8);
+  }
 }
 </style>

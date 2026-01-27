@@ -67,7 +67,7 @@ const Bill = {
     WHERE list_id = ? 
     ORDER BY create_time DESC`;
 
-    const [rows] = await DatabaseUtil.execute(query, [listId]);
+    const rows = await DatabaseUtil.execute(query, [listId]);
     return rows;
   },
 

@@ -6,6 +6,7 @@
       <main>
         <RouterView />
       </main>
+      <AppFooter />
     </div>
   </div>
 </template>
@@ -15,6 +16,7 @@ import { computed } from 'vue'
 import { RouterView } from 'vue-router'
 import AppHeader from '@/components/layout/AppHeader.vue'
 import AppSidebar from '@/components/layout/AppSidebar.vue'
+import AppFooter from '@/components/layout/AppFooter.vue'
 import { NAV_ITEMS } from '@/utils/constants'
 import { useAuthStore } from '@/stores/auth'
 

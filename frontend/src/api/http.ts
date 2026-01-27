@@ -3,6 +3,8 @@ import type { AxiosRequestHeaders, AxiosResponse } from 'axios'
 import type { ApiResponse } from '@/types/http'
 import { useAuthStore } from '@/stores/auth'
 import { pinia } from '@/stores'
+import router from '@/router'
+import { useToast } from '@/composables/useToast'
 
 // 自定义错误类：ApiError
 export class ApiError extends Error {
@@ -19,6 +21,33 @@ const http = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL,
   timeout: 15000
 })
+
+let redirectingOn401 = false
+
+const handleUnauthorized = () => {
+  const authStore = useAuthStore(pinia)
+  authStore.forcedLogout()
+
+  if (redirectingOn401) {
+    return
+  }
+
+  redirectingOn401 = true
+  const toast = useToast()
+  const currentRoute = router.currentRoute.value
+  const shouldRedirectBack = currentRoute.name && currentRoute.name !== 'login'
+
+  toast.error('登录状态已失效，请重新登录')
+
+  router
+    .push({
+      name: 'login',
+      query: shouldRedirectBack ? { redirect: currentRoute.fullPath } : undefined
+    })
+    .finally(() => {
+      redirectingOn401 = false
+    })
+}
 
 // 请求拦截器：自动注入 JWT Token
 http.interceptors.request.use((config) => {
@@ -38,8 +67,7 @@ http.interceptors.response.use(
   (error) => {
     const status = error.response?.status
     if (status === 401) { // 如果状态码是 401（未授权），执行登出操作
-      const authStore = useAuthStore(pinia)
-      authStore.forcedLogout()  // 执行强制登出操作
+      handleUnauthorized()
     }
     return Promise.reject(error)
   }

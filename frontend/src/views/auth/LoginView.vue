@@ -53,7 +53,8 @@ const handleSubmit = async () => {
     const redirect = (route.query.redirect as string) || 'dashboard'
     router.push(redirect)
   } catch (error) {
-    toast.error('登录失败，请检查账号密码')
+    const message = error instanceof Error ? error.message : '登录失败，请检查账号密码'
+    toast.error(message || '登录失败，请检查账号密码')
   } finally {
     loading.value = false
   }

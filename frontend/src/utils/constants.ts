@@ -41,3 +41,6 @@ export const getStatusMeta = (status: ReimbursementStatus): StatusMeta => {
   const match = STATUS_OPTIONS.find((item) => item.value === status)
   return match ?? STATUS_OPTIONS[0]!
 }
+
+// 页脚默认跳转链接，可通过环境变量 VITE_COPYRIGHT_URL 覆盖
+export const COPYRIGHT_FALLBACK_URL = 'http://github.com/CloudYunLight/ClaimExpense'

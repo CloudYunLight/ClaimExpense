@@ -43,6 +43,7 @@
           <h2>我的报销清单</h2>
           <p>{{ pagination.total }} 条记录</p>
         </div>
+        <div v-if="refreshing" class="refresh-pill">同步中...</div>
         <div class="pager">
           <button type="button" :disabled="pagination.pageNum === 1" @click="changePage(-1)">上一页</button>
           <button type="button" :disabled="!hasMore" @click="changePage(1)">下一页</button>
@@ -72,7 +73,11 @@
               <td>{{ formatDateTime(item.createTime) }}</td>
               <td>{{ formatDateTime(item.updateTime) }}</td>
               <td>
-                <select v-model.number="statusDraft[item.listId]" @change="submitStatus(item)">
+                <select
+                  class="status-dropdown status-dropdown--compact"
+                  v-model.number="statusDraft[item.listId]"
+                  @change="submitStatus(item)"
+                >
                   <option v-for="option in statusOptions" :key="option.value" :value="option.value">
                     {{ option.label }}
                   </option>
@@ -119,7 +124,8 @@ const pagination = reactive({
 })
 
 const lists = ref<ReimbursementListItem[]>([])
-const loading = ref(false)
+const loading = ref(true)
+const refreshing = ref(false)
 const creating = ref(false)
 const newListName = ref('')
 const statusDraft = reactive<Record<number, number>>({})
@@ -128,8 +134,12 @@ const hasMore = computed(
   () => pagination.pageNum * pagination.pageSize < pagination.total
 )
 
-const fetchLists = async () => {
-  loading.value = true
+const fetchLists = async ({ silent = false } = {}) => {
+  if (silent) {
+    refreshing.value = true
+  } else {
+    loading.value = true
+  }
   try {
     const params = {
       pageNum: pagination.pageNum,
@@ -150,7 +160,11 @@ const fetchLists = async () => {
   } catch (error) {
     toast.error('无法获取清单列表')
   } finally {
-    loading.value = false
+    if (silent) {
+      refreshing.value = false
+    } else {
+      loading.value = false
+    }
   }
 }
 
@@ -171,7 +185,7 @@ const handleCreate = async () => {
     await listApi.createList({ activityName: newListName.value })
     toast.success('清单创建成功')
     newListName.value = ''
-    fetchLists()
+    await fetchLists({ silent: true })
   } catch (error) {
     toast.error('创建失败，请确认同名限制')
   } finally {
@@ -185,7 +199,7 @@ const submitStatus = async (item: ReimbursementListItem) => {
   try {
     await listApi.updateListStatus(item.listId, { status: status as ReimbursementStatus })
     toast.success('状态已更新')
-    fetchLists()
+    await fetchLists({ silent: true })
   } catch (error) {
     statusDraft[item.listId] = item.status
     toast.error('状态更新失败')
@@ -197,7 +211,7 @@ const deleteList = async (listId: number) => {
   try {
     await listApi.deleteList(listId)
     toast.info('清单已删除')
-    fetchLists()
+    await fetchLists({ silent: true })
   } catch (error) {
     toast.error('删除失败')
   }
@@ -288,6 +302,8 @@ onMounted(fetchLists)
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
   margin-bottom: 1rem;
 }
 
@@ -334,6 +350,18 @@ onMounted(fetchLists)
 .skeleton {
   padding: 2rem;
   text-align: center;
+}
+
+.refresh-pill {
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  background: rgba(59, 130, 246, 0.12);
+  color: #1d4ed8;
+  font-size: 0.85rem;
+}
+
+.status-dropdown--compact {
+  min-width: 140px;
 }
 
 @media (max-width: 1024px) {
