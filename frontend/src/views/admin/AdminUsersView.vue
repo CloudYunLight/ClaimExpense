@@ -1,10 +1,14 @@
 <template>
+  <!-- 管理员用户管理面板 -->
   <section class="panel">
+    <!-- 面板头部包含标题、描述以及查询表单 -->
     <header class="panel-header">
       <div>
+        <!-- 标题和简短描述 -->
         <h2>管理员 · 用户管理</h2>
         <p>严格遵循 Document 的管理员边界，只操作用户表</p>
       </div>
+      <!-- 查询用户表单 -->
       <form class="filters" @submit.prevent="loadUsers">
         <input v-model.trim="filters.username" type="text" placeholder="用户名" />
         <input v-model.trim="filters.realName" type="text" placeholder="真实姓名" />
@@ -17,18 +21,23 @@
       </form>
     </header>
 
+    <!-- 创建新用户的表单 -->
     <div class="create-box">
       <form class="create-form" @submit.prevent="createUser">
         <input v-model.trim="form.usernameAdd" type="text" placeholder="用户名" required />
         <input v-model.trim="form.realNameAdd" type="text" placeholder="真实姓名" required />
         <button type="submit" :disabled="creating">{{ creating ? '创建中...' : '新增用户' }}</button>
       </form>
+      <!-- 显示新用户的初始密码 -->
       <p v-if="initialPassword">新用户初始密码：<strong>{{ initialPassword }}</strong></p>
     </div>
 
+    <!-- 加载状态提示 -->
     <div v-if="loading" class="loading">读取用户列表...</div>
+    <!-- 用户列表或空状态显示 -->
     <template v-else>
       <table v-if="users.length" class="user-table">
+        <!-- 表格头 -->
         <thead>
           <tr>
             <th>用户名</th>
@@ -38,17 +47,20 @@
             <th>操作</th>
           </tr>
         </thead>
+        <!-- 表格体 -->
         <tbody>
           <tr v-for="user in users" :key="user.userId">
             <td>{{ user.username }}</td>
             <td>{{ user.realName }}</td>
             <td>
+              <!-- 用户状态标签 -->
               <span :class="['pill', user.status === 1 ? 'ok' : 'lock']">
                 {{ user.status === 1 ? '正常' : '锁定' }}
               </span>
             </td>
             <td>{{ formatDateTime(user.createTime) }}</td>
             <td class="actions">
+              <!-- 操作按钮：重置密码、切换状态 -->
               <button type="button" @click="resetPassword(user.userId)">重置密码</button>
               <button type="button" class="ghost" @click="toggleStatus(user)">
                 {{ user.status === 1 ? '锁定' : '解锁' }}
@@ -57,12 +69,14 @@
           </tr>
         </tbody>
       </table>
+      <!-- 当没有用户时显示的组件 -->
       <EmptyState v-else>暂无用户记录</EmptyState>
     </template>
   </section>
 </template>
 
 <script setup lang="ts">
+// 引入必要的Vue函数和API
 import { onMounted, reactive, ref } from 'vue'
 import * as adminApi from '@/api/admin'
 import EmptyState from '@/components/common/EmptyState.vue'
@@ -72,22 +86,29 @@ import { useToast } from '@/composables/useToast'
 
 const toast = useToast()
 
+// 定义过滤器对象用于搜索用户
 const filters = reactive({
   username: '',
   realName: '',
   status: ''
 })
 
+// 用户数据响应式引用
 const users = ref<AdminUserItem[]>([])
+// 加载状态标识符
 const loading = ref(false)
+// 创建用户状态标识符
 const creating = ref(false)
+// 初始密码存储变量
 const initialPassword = ref('')
 
+// 新增用户表单数据
 const form = reactive({
   usernameAdd: '',
   realNameAdd: ''
 })
 
+// 加载用户列表方法
 const loadUsers = async () => {
   loading.value = true
   try {
@@ -100,12 +121,14 @@ const loadUsers = async () => {
   }
 }
 
+// 创建新用户方法
 const createUser = async () => {
   creating.value = true
   try {
     const result = await adminApi.createUser({ ...form })
     initialPassword.value = result.initialPassword
     toast.success('用户已创建')
+    // 清除表单数据
     form.usernameAdd = ''
     form.realNameAdd = ''
     loadUsers()
@@ -116,15 +139,17 @@ const createUser = async () => {
   }
 }
 
+// 重置用户密码方法
 const resetPassword = async (userId: number) => {
   try {
     const data = await adminApi.resetPassword(userId)
-    toast.info(`新密码：${data.newPassword}`)
+    toast.info(`新密码： ${data.newPassword}`)
   } catch (error) {
     toast.error('重置失败')
   }
 }
 
+// 切换用户状态方法
 const toggleStatus = async (user: AdminUserItem) => {
   try {
     await adminApi.updateUserStatus(user.userId, { status: user.status === 1 ? 0 : 1 })
@@ -135,10 +160,13 @@ const toggleStatus = async (user: AdminUserItem) => {
   }
 }
 
+// 页面加载完成时自动加载用户列表
 onMounted(loadUsers)
 </script>
 
+<!-- 样式代码块，定义了组件的样式 -->
 <style scoped>
+
 .panel {
   background: var(--surface);
   border-radius: 24px;

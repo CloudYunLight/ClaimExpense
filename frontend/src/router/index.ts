@@ -85,7 +85,7 @@ const guard = async (
 
   // 【页面标题设置】根据路由 meta 中的 title 动态更新 document.title
   if (to.meta.title) {
-    document.title = ` $ {to.meta.title} ·  $ {import.meta.env.VITE_APP_NAME}`
+    document.title = ` ${to.meta.title} ·  ${import.meta.env.VITE_APP_NAME}`
   } else {
     document.title = import.meta.env.VITE_APP_NAME // 默认应用名称
   }
