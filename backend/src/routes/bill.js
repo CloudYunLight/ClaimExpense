@@ -234,7 +234,8 @@ router.get('/my', authenticateToken, async (req, res) => {
 
     const filters = {};
     if (listId) filters.listId = listId;
-    if (paymentMethod !== undefined) filters.paymentMethod = paymentMethod;
+    paymentMethod_normalize = normalizePaymentMethodFilter(paymentMethod);
+    if (paymentMethod_normalize !== undefined) filters.paymentMethod = paymentMethod_normalize;
     if (startTime) filters.startTime = startTime;
     if (endTime) filters.endTime = endTime;
 

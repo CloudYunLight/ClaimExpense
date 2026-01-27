@@ -2,6 +2,8 @@ const DatabaseUtil = require('../utils/database');
 const bcrypt = require('bcryptjs');
 const config = require('../utils/config');
 const crypto = require('crypto');  // 添加：引入Node.js内置的crypto模块
+const { normalizeStatusFilter } = require('../utils/utils_status');
+
 
 // 用户表结构定义
 const User = {
@@ -42,6 +44,7 @@ const User = {
   // 获取用户列表（分页）
   getUsers: async (pageNum = 1, pageSize = 10, filters = {}) => {
     const { username, realName, status } = filters; // 获取过滤条件
+    const normalizedStatus = normalizeStatusFilter(status);
     const offset = (pageNum - 1) * pageSize;  // 计算偏移量
     
     // 实在的查询用户内容
@@ -58,9 +61,9 @@ const User = {
       params.push(`%${realName}%`); // 粗匹配
     }
     
-    if (status !== undefined && status !== null) {
+    if (normalizedStatus !== undefined) {
       query += ' AND status = ?';
-      params.push(status);
+      params.push(normalizedStatus);
     }
     
     query += ' ORDER BY create_time DESC LIMIT ? OFFSET ?';
@@ -80,11 +83,10 @@ const User = {
       countParams.push(`%${realName}%`);
     }
     
-    if (status !== undefined && status !== null) {
+    if (normalizedStatus !== undefined) {
       countQuery += ' AND status = ?';
-      countParams.push(status);
+      countParams.push(normalizedStatus);
     }
-    
     const countResult = await DatabaseUtil.execute(countQuery, countParams);  // 解构返回的结果
     // console.log("数量查询结果",countResult)
     // 要对返回为空的情况做处理

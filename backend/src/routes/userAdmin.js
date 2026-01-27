@@ -5,6 +5,7 @@ const crypto = require('crypto');
 const logger = require('../utils/logger');
 
 const router = express.Router();
+const { normalizeStatusFilter } = require('../utils/utils_status');
 
 // 获取用户列表（仅管理员）
 router.get('/users', authenticateToken, requireAdminRole, async (req, res) => {
@@ -20,7 +21,8 @@ router.get('/users', authenticateToken, requireAdminRole, async (req, res) => {
     const filters = {};
     if (username) filters.username = username;
     if (realName) filters.realName = realName;
-    if (status !== undefined) filters.status = status;
+    const normalizedStatus = normalizeStatusFilter(status);
+    if (normalizedStatus !== undefined) filters.status = normalizedStatus;
 
     const result = await User.getUsers(parseInt(pageNum), parseInt(pageSize), filters);
 
