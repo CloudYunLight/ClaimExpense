@@ -1,44 +1,146 @@
 <template>
   <div v-if="loading" class="loading">加载清单详情...</div>
-  <div v-else-if="detail" class="detail-grid">
-    <div v-if="refreshing" class="refresh-indicator">
-      <span class="pulse-dot" /> 数据同步中...
-    </div>
-    <section class="info-card">
-      <header>
+  <div v-else-if="detail" class="detail-page">
+    <section class="panel hero">
+      <div class="hero-info">
+        <p class="eyebrow">报销清单</p>
         <h2>{{ detail.listInfo.activityName }}</h2>
+        <div class="meta-row">
+          <span>清单编号 #{{ detail.listInfo.listId }}</span>
+          <span>创建 {{ formatDateTime(detail.listInfo.createTime) }}</span>
+          <span>最近更新 {{ formatDateTime(detail.listInfo.updateTime) }}</span>
+        </div>
+      </div>
+      <div class="hero-actions">
         <StatusBadge :status="detail.listInfo.status" />
-      </header>
-      <dl>
-        <div>
-          <dt>总金额</dt>
-          <dd>{{ formatCurrency(detail.listInfo.totalAmount) }}</dd>
-        </div>
-        <div>
-          <dt>创建时间</dt>
-          <dd>{{ formatDateTime(detail.listInfo.createTime) }}</dd>
-        </div>
-        <div>
-          <dt>更新时间</dt>
-          <dd>{{ formatDateTime(detail.listInfo.updateTime) }}</dd>
-        </div>
-      </dl>
-      <label class="status-select">
-        调整状态
         <select class="status-dropdown status-dropdown--inline" v-model.number="statusDraft" @change="updateStatus">
           <option v-for="option in statusOptions" :key="option.value" :value="option.value">
             {{ option.label }}
           </option>
         </select>
-      </label>
+        <button type="button" class="ghost" :disabled="refreshing" @click="loadDetail({ silent: true })">
+          {{ refreshing ? '同步中...' : '刷新数据' }}
+        </button>
+      </div>
     </section>
-    <section class="bills-card">
-      <header class="panel-header">
-        <h3>账单明细</h3>
-        <p>{{ detail.bills.length }} 条记录</p>
+
+    <section class="metrics-grid">
+      <article class="metric-card">
+        <span>清单总金额</span>
+        <strong>{{ formatCurrency(detail.listInfo.totalAmount) }}</strong>
+        <small>提交时预计金额</small>
+      </article>
+      <article class="metric-card">
+        <span>已录入账单</span>
+        <strong>{{ formatCurrency(totalBillsAmount) }}</strong>
+        <small>{{ detail.bills.length }} 条账单</small>
+      </article>
+      <article class="metric-card">
+        <span>平均单笔金额</span>
+        <strong>{{ formatCurrency(averageBillAmount) }}</strong>
+        <small>仅统计已录入账单</small>
+      </article>
+      <article class="metric-card">
+        <span>待处理</span>
+        <strong>{{ detail.listInfo.status === 2 ? '全部完成' : '仍在进行' }}</strong>
+        <small>状态可在右侧切换</small>
+      </article>
+    </section>
+
+    <section class="panel insights-panel">
+      <header>
+        <div>
+          <h3>支付方式构成</h3>
+          <p>覆盖 {{ detail.bills.length }} 条账单</p>
+        </div>
+        <span class="pill">{{ paymentBreakdown.length }} 种方式</span>
       </header>
-      <form class="bill-form" @submit.prevent="submitBill">
-        <div class="grid-two">
+      <div class="breakdown-grid">
+        <article v-for="item in paymentBreakdown" :key="item.value">
+          <div class="breakdown-head">
+            <span class="label">{{ item.label }}</span>
+            <strong>{{ formatCurrency(item.amount) }}</strong>
+          </div>
+          <div class="breakdown-meta">
+            <span>{{ item.count }} 笔</span>
+            <span>{{ item.percent }}%</span>
+          </div>
+          <div class="progress-bar">
+            <span class="fill" :style="{ width: `${item.percent}%` }" />
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="workspace-grid">
+      <div class="panel bills-panel">
+        <header class="panel-header">
+          <div>
+            <h3>账单明细</h3>
+            <p>{{ detail.bills.length }} 条记录</p>
+          </div>
+          <div class="panel-actions">
+            <button type="button" class="ghost" :disabled="refreshing" @click="loadDetail({ silent: true })">
+              {{ refreshing ? '同步中...' : '刷新列表' }}
+            </button>
+            <button v-if="billForm.billId" type="button" class="ghost" @click="resetBillForm">取消编辑</button>
+          </div>
+        </header>
+        <div v-if="detail.bills.length" class="bill-list">
+          <table class="bill-table desktop-only">
+            <thead>
+              <tr>
+                <th>支付方式</th>
+                <th>金额</th>
+                <th>备注</th>
+                <th>创建时间</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="bill in detail.bills" :key="bill.billId" :class="{ active: billForm.billId === bill.billId }">
+                <td>{{ methodLabel(bill.paymentMethod) }}</td>
+                <td>{{ formatCurrency(bill.amount) }}</td>
+                <td>{{ bill.remark || '--' }}</td>
+                <td>{{ formatDateTime(bill.createTime) }}</td>
+                <td class="actions">
+                  <button type="button" class="ghost" @click="editBill(bill)">编辑</button>
+                  <button type="button" class="warn" @click="removeBill(bill.billId)">删除</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="bill-cards mobile-only">
+            <article v-for="bill in detail.bills" :key="bill.billId" :class="{ active: billForm.billId === bill.billId }">
+              <header>
+                <div>
+                  <h4>{{ methodLabel(bill.paymentMethod) }}</h4>
+                  <small>{{ formatDateTime(bill.createTime) }}</small>
+                </div>
+                <span class="amount">{{ formatCurrency(bill.amount) }}</span>
+              </header>
+              <p class="remark">{{ bill.remark || '无备注' }}</p>
+              <div class="card-actions">
+                <button type="button" class="ghost" @click="editBill(bill)">编辑</button>
+                <button type="button" class="warn" @click="removeBill(bill.billId)">删除</button>
+              </div>
+            </article>
+          </div>
+        </div>
+        <div v-else class="table-empty">
+          <EmptyState>暂无账单，请先录入一笔</EmptyState>
+        </div>
+      </div>
+
+      <aside class="panel form-panel">
+        <header>
+          <div>
+            <p class="eyebrow">{{ billForm.billId ? '编辑账单' : '新增账单' }}</p>
+            <h3>{{ detail.listInfo.activityName }}</h3>
+          </div>
+          <button v-if="billForm.billId" type="button" class="ghost" @click="resetBillForm">清除选择</button>
+        </header>
+        <form class="bill-form" @submit.prevent="submitBill">
           <label>
             支付方式
             <select v-model.number="billForm.paymentMethod">
@@ -51,47 +153,23 @@
             金额（元）
             <input v-model.number="billForm.amount" type="number" min="0.01" step="0.01" required />
           </label>
-        </div>
-        <label>
-          备注
-          <textarea v-model.trim="billForm.remark" rows="2" placeholder="可输入发票号等信息" />
-        </label>
-        <div class="form-actions">
-          <button type="submit">{{ billForm.billId ? '更新账单' : '添加账单' }}</button>
-          <button v-if="billForm.billId" type="button" class="ghost" @click="resetBillForm">取消编辑</button>
-        </div>
-      </form>
-      <table v-if="detail.bills.length" class="bill-table">
-        <thead>
-          <tr>
-            <th>支付方式</th>
-            <th>金额</th>
-            <th>备注</th>
-            <th>创建时间</th>
-            <th>操作</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="bill in detail.bills" :key="bill.billId">
-            <td>{{ methodLabel(bill.paymentMethod) }}</td>
-            <td>{{ formatCurrency(bill.amount) }}</td>
-            <td>{{ bill.remark || '--' }}</td>
-            <td>{{ formatDateTime(bill.createTime) }}</td>
-            <td class="actions">
-              <button type="button" class="ghost" @click="editBill(bill)">编辑</button>
-              <button type="button" class="warn" @click="removeBill(bill.billId)">删除</button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-      <EmptyState v-else>暂无账单，请先录入一笔</EmptyState>
+          <label>
+            备注
+            <textarea v-model.trim="billForm.remark" rows="3" placeholder="可输入发票号等信息" />
+          </label>
+          <div class="form-actions">
+            <button type="submit">{{ billForm.billId ? '保存修改' : '添加账单' }}</button>
+            <button v-if="billForm.billId" type="button" class="ghost" @click="resetBillForm">重置</button>
+          </div>
+        </form>
+      </aside>
     </section>
   </div>
   <EmptyState v-else>未找到对应的清单</EmptyState>
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref, watch } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import * as listApi from '@/api/lists'
 import * as billApi from '@/api/bills'
@@ -125,6 +203,40 @@ const parseListId = (value: unknown): number | null => {
 }
 
 const listId = ref<number | null>(parseListId(route.params.listId))
+
+const totalBillsAmount = computed(() =>
+  detail.value?.bills.reduce((sum, bill) => sum + Number(bill.amount || 0), 0) ?? 0
+)
+
+const billCount = computed(() => detail.value?.bills.length ?? 0)
+
+const averageBillAmount = computed(() => {
+  if (!billCount.value) return 0
+  return totalBillsAmount.value / billCount.value
+})
+
+const paymentBreakdown = computed(() => {
+  const buckets = paymentMethods.map((method) => ({
+    ...method,
+    count: 0,
+    amount: 0,
+    percent: 0
+  }))
+  const map = new Map<number, (typeof buckets)[number]>()
+  buckets.forEach((bucket) => map.set(bucket.value, bucket))
+  detail.value?.bills.forEach((bill) => {
+    const bucket = map.get(bill.paymentMethod)
+    if (bucket) {
+      bucket.count += 1
+      bucket.amount += Number(bill.amount || 0)
+    }
+  })
+  const total = buckets.reduce((sum, bucket) => sum + bucket.amount, 0)
+  buckets.forEach((bucket) => {
+    bucket.percent = total ? Math.round((bucket.amount / total) * 100) : 0
+  })
+  return buckets
+})
 
 const loadDetail = async ({ silent = false } = {}) => {
   const targetId = listId.value
@@ -255,95 +367,184 @@ onMounted(loadDetail)
   text-align: center;
 }
 
-.detail-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: 2rem;
+.detail-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
 }
 
-.info-card,
-.bills-card {
+.panel {
   background: var(--surface);
   border-radius: 24px;
   padding: 1.5rem;
   box-shadow: var(--shadow-card);
 }
 
-.info-card header {
+.hero {
   display: flex;
   justify-content: space-between;
+  gap: 1.5rem;
+  flex-wrap: wrap;
   align-items: center;
 }
 
-dl {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 1rem;
-  margin-top: 1.5rem;
+.eyebrow {
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+  margin: 0 0 0.25rem;
 }
 
-dl div {
-  background: rgba(15, 23, 42, 0.05);
-  padding: 0.75rem;
-  border-radius: 12px;
+.hero-info h2 {
+  margin: 0;
+  font-size: 1.5rem;
 }
 
-dl dt {
-  font-size: 0.8rem;
+.meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  font-size: 0.85rem;
   color: var(--text-muted);
 }
 
-dl dd {
-  margin: 0;
-  font-weight: 600;
-}
-
-.status-select {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-  margin-top: 1.5rem;
-}
-
-.status-dropdown--inline {
-  width: 100%;
-}
-
-.bill-form {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
-}
-
-.grid-two {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 1rem;
-}
-
-.bill-form select,
-.bill-form input,
-.bill-form textarea {
-  border-radius: 12px;
-  border: 1px solid rgba(15, 23, 42, 0.15);
-  padding: 0.6rem;
-}
-
-.form-actions {
+.hero-actions {
   display: flex;
   gap: 0.75rem;
+  align-items: center;
+  flex-wrap: wrap;
 }
 
-.form-actions button {
-  border-radius: 12px;
+.hero-actions .ghost {
   border: none;
-  padding: 0.6rem 1.25rem;
+  border-radius: 999px;
+  padding: 0.45rem 1rem;
+  background: rgba(15, 23, 42, 0.06);
   cursor: pointer;
 }
 
-.form-actions .ghost {
-  background: rgba(15, 23, 42, 0.06);
+.hero-actions .ghost:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+}
+
+.metric-card {
+  background: rgba(15, 23, 42, 0.03);
+  border-radius: 18px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.metric-card span {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.metric-card strong {
+  font-size: 1.4rem;
+}
+
+.metric-card small {
+  color: var(--text-muted);
+}
+
+.insights-panel header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.pill {
+  border-radius: 999px;
+  padding: 0.35rem 0.9rem;
+  background: rgba(59, 130, 246, 0.12);
+  color: #1d4ed8;
+  font-size: 0.8rem;
+}
+
+.breakdown-grid {
+  margin-top: 1rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+}
+
+.breakdown-grid article {
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 18px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.breakdown-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.breakdown-head strong {
+  font-size: 1.1rem;
+}
+
+.breakdown-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.progress-bar {
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.08);
+  overflow: hidden;
+}
+
+.progress-bar .fill {
+  display: block;
+  height: 100%;
+  background: linear-gradient(120deg, #38bdf8, #6366f1);
+}
+
+.workspace-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.panel-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.bill-list {
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 18px;
+  overflow: hidden;
 }
 
 .bill-table {
@@ -353,55 +554,166 @@ dl dd {
 
 .bill-table th,
 .bill-table td {
+  padding: 0.8rem;
   text-align: left;
-  padding: 0.75rem 0.5rem;
-  border-bottom: 1px solid rgba(15, 23, 42, 0.1);
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.bill-table tr.active {
+  background: rgba(37, 99, 235, 0.08);
+}
+
+.actions {
+  display: flex;
+  gap: 0.35rem;
 }
 
 .actions button {
-  border-radius: 999px;
   border: none;
-  padding: 0.35rem 0.8rem;
+  border-radius: 999px;
+  padding: 0.35rem 0.9rem;
+  cursor: pointer;
 }
 
-.actions .ghost {
-  background: rgba(37, 99, 235, 0.15);
+.actions .ghost,
+.card-actions .ghost,
+.form-actions .ghost {
+  background: rgba(37, 99, 235, 0.12);
+  color: #1d4ed8;
 }
 
-.actions .warn {
+.actions .warn,
+.card-actions .warn {
   background: rgba(220, 38, 38, 0.15);
   color: #991b1b;
 }
 
-.refresh-indicator {
-  grid-column: 1 / -1;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  font-size: 0.85rem;
+.table-empty {
+  padding: 2rem 0;
+  text-align: center;
+}
+
+.bill-cards {
+  display: none;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.bill-cards article {
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 16px;
+  padding: 1rem;
+}
+
+.bill-cards article.active {
+  border-color: rgba(37, 99, 235, 0.5);
+}
+
+.bill-cards header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.bill-cards .amount {
+  font-weight: 700;
+}
+
+.bill-cards .remark {
+  margin: 0.5rem 0;
   color: var(--text-muted);
 }
 
-.pulse-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--brand-primary);
-  animation: pulse 1.4s infinite ease-in-out;
+.card-actions {
+  display: flex;
+  gap: 0.5rem;
 }
 
-@keyframes pulse {
-  0% {
-    opacity: 0.2;
-    transform: scale(0.8);
+.card-actions button {
+  border: none;
+  border-radius: 999px;
+  padding: 0.35rem 0.85rem;
+  cursor: pointer;
+}
+
+.form-panel header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  gap: 1rem;
+}
+
+.bill-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.bill-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-weight: 600;
+}
+
+.bill-form select,
+.bill-form input,
+.bill-form textarea {
+  border-radius: 12px;
+  border: 1px solid rgba(15, 23, 42, 0.15);
+  padding: 0.6rem 0.75rem;
+}
+
+.form-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.form-actions button {
+  border: none;
+  border-radius: 12px;
+  padding: 0.6rem 1.2rem;
+  cursor: pointer;
+}
+
+.form-actions button:first-child {
+  background: linear-gradient(120deg, #38bdf8, #6366f1);
+  color: white;
+}
+
+.desktop-only {
+  display: table;
+}
+
+.mobile-only {
+  display: none;
+}
+
+@media (max-width: 1100px) {
+  .workspace-grid {
+    grid-template-columns: 1fr;
   }
-  50% {
-    opacity: 1;
-    transform: scale(1);
+}
+
+@media (max-width: 720px) {
+  .hero {
+    flex-direction: column;
+    align-items: flex-start;
   }
-  100% {
-    opacity: 0.2;
-    transform: scale(0.8);
+
+  .desktop-only {
+    display: none;
+  }
+
+  .mobile-only {
+    display: grid;
+  }
+
+  .bill-list {
+    border: none;
+    padding: 0;
   }
 }
 </style>
