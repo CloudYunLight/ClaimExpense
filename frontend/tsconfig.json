@@ -1,0 +1,8 @@
+// tsconfig.json（主配置文件）
+{
+  "files": [],
+  "references": [
+    { "path": "./tsconfig.app.json" },
+    { "path": "./tsconfig.node.json" }
+  ]
+}

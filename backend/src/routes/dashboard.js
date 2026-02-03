@@ -126,7 +126,12 @@ router.get('/status', authenticateToken, async (req, res) => {
     const results = await DatabaseUtil.execute(statusDistributionQuery, params);
 
     // 计算总数和总金额用于百分比计算
-    const totalQuery = `SELECT COUNT(*) as totalCount, COALESCE(SUM(total_amount), 0) as totalAmount FROM reimbursement_lists WHERE creator_id = ? ${dateCondition}`;
+    const totalQuery = `
+      SELECT 
+        COUNT(*) as totalCount, 
+        COALESCE(SUM(total_amount), 0) as totalAmount 
+      FROM reimbursement_lists rl
+      WHERE creator_id = ? ${dateCondition}`;
     const totalResult = await DatabaseUtil.execute(totalQuery, params);
 
     const totalCount = totalResult[0].totalCount;

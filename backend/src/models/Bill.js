@@ -1,4 +1,5 @@
 const DatabaseUtil = require('../utils/database');
+const { normalizeStatusFilter } = require('../utils/utils_status');
 
 const Bill = {
   // 添加账单
@@ -66,7 +67,7 @@ const Bill = {
     WHERE list_id = ? 
     ORDER BY create_time DESC`;
 
-    const [rows] = await DatabaseUtil.execute(query, [listId]);
+    const rows = await DatabaseUtil.execute(query, [listId]);
     return rows;
   },
 
@@ -102,10 +103,11 @@ const Bill = {
       query += ' AND b.list_id = ?';
       params.push(listId);
     }
+    const normalizedStatus = normalizeStatusFilter(paymentMethod);
 
-    if (paymentMethod !== undefined && paymentMethod !== null) {
+    if (normalizedStatus !== undefined) {
       query += ' AND b.payment_method = ?';
-      params.push(paymentMethod);
+      params.push(normalizedStatus);
     }
 
     if (startTime) {
@@ -129,9 +131,9 @@ const Bill = {
       countParams.push(listId);
     }
 
-    if (paymentMethod !== undefined && paymentMethod !== null) {
+    if (normalizedStatus !== undefined) {
       countQuery += ' AND payment_method = ?';
-      countParams.push(paymentMethod);
+      countParams.push(normalizedStatus);
     }
 
     if (startTime) {

@@ -1,6 +1,7 @@
 const express = require('express');
 const { authenticateToken } = require('../middleware/auth.mid');
 const ReimbursementList = require('../models/ReimbursementList');
+const { normalizeStatusFilter } = require('../utils/utils_status');
 
 const router = express.Router();
 
@@ -72,7 +73,8 @@ router.get('/SearchLists', authenticateToken, async (req, res) => {
 
     const filters = {};
     if (activityName) filters.activityName = activityName;
-    if (status !== undefined) filters.status = status;
+    const normalizedStatus = normalizeStatusFilter(status);
+    if (normalizedStatus !== undefined) filters.status = normalizedStatus;
     if (startTime) filters.startTime = startTime;
     if (endTime) filters.endTime = endTime;
 

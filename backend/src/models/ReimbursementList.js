@@ -1,4 +1,5 @@
 const DatabaseUtil = require('../utils/database');
+const { normalizeStatusFilter } = require('../utils/utils_status');
 
 const ReimbursementList = {
   // 根据活动名称和创建者ID查询清单（用于实现幂等性）
@@ -47,9 +48,10 @@ const ReimbursementList = {
       params.push(`%${activityName}%`);
     }
 
-    if (status !== undefined && status !== null) {
+    const normalizedStatus = normalizeStatusFilter(status);
+    if (normalizedStatus !== undefined) {
       query += ' AND status = ?';
-      params.push(status);
+      params.push(normalizedStatus);
     }
 
     if (startTime) {
@@ -62,6 +64,7 @@ const ReimbursementList = {
       params.push(endTime);
     }
 
+    
     query += ' ORDER BY create_time DESC LIMIT ? OFFSET ?';
     params.push(parseInt(pageSize), parseInt(offset));
 
@@ -73,7 +76,8 @@ const ReimbursementList = {
       countParams.push(`%${activityName}%`);
     }
 
-    if (status !== undefined && status !== null) {
+
+    if (normalizedStatus !== undefined) {
       countQuery += ' AND status = ?';
       countParams.push(status);
     }
@@ -88,6 +92,8 @@ const ReimbursementList = {
       countParams.push(endTime);
     }
 
+    // console.log('query:', query)
+    // console.log('params:', params)
     const countResult = await DatabaseUtil.execute(countQuery, countParams);
     const rows = await DatabaseUtil.execute(query, params);
 
