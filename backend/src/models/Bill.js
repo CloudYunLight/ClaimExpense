@@ -123,7 +123,8 @@ const Bill = {
     query += ' ORDER BY b.create_time DESC LIMIT ? OFFSET ?';
     params.push(parseInt(pageSize), parseInt(offset));
 
-    const countQuery = `SELECT COUNT(*) as total FROM bills b WHERE payer_id = ?`;
+    // 这里必须使用 let，后续会按筛选条件动态拼接统计 SQL。
+    let countQuery = `SELECT COUNT(*) as total FROM bills b WHERE payer_id = ?`;
     const countParams = [payerId];
 
     if (listId) {

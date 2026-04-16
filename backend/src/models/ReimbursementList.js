@@ -130,11 +130,21 @@ const ReimbursementList = {
 
   // 删除清单
   deleteById: async (listId, userId) => {
-    // 原本使用的事务性操作
     try {
+      const ownerCheck = await DatabaseUtil.execute(
+        'SELECT list_id FROM reimbursement_lists WHERE list_id = ? AND creator_id = ?',
+        [listId, userId]
+      );
 
-      // 先删除关联的账单
-      await DatabaseUtil.execute('DELETE FROM bills WHERE list_id = ?', [listId]);
+      if (!ownerCheck.length) {
+        return false;
+      }
+
+      // 先删除当前用户名下该清单关联的账单，再删除清单本身
+      await DatabaseUtil.execute(
+        'DELETE b FROM bills b JOIN reimbursement_lists rl ON b.list_id = rl.list_id WHERE b.list_id = ? AND rl.creator_id = ?',
+        [listId, userId]
+      );
 
       // 再删除清单
       const result = await DatabaseUtil.execute('DELETE FROM reimbursement_lists WHERE list_id = ? AND creator_id = ?', [listId, userId]);

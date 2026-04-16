@@ -45,13 +45,13 @@ const guard = async (
     // 尝试从 localStorage / cookie 恢复登录状态（如 token）
     authStore.restore()
 
-    // 如果已认证但用户信息缺失（例如只有 token 没有 profile），则拉取用户资料
-    if (authStore.isAuthenticated && !authStore.user) {
+    // 只要本地认为已登录，就在首次进入应用时主动校验一次登录态
+    if (authStore.isAuthenticated) {
       try {
         await authStore.fetchProfile() // 请求用户详情接口
       } catch (error) {
         // 若获取失败（如 token 过期），清除无效状态
-        authStore.clear()
+        authStore.forcedLogout()
       }
     }
   }

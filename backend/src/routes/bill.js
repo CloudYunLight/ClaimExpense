@@ -2,6 +2,7 @@ const express = require('express');
 const { authenticateToken } = require('../middleware/auth.mid');
 const Bill = require('../models/Bill');
 const ReimbursementList = require('../models/ReimbursementList');
+const { normalizeStatusFilter } = require('../utils/utils_status');
 
 const router = express.Router();
 
@@ -234,8 +235,9 @@ router.get('/my', authenticateToken, async (req, res) => {
 
     const filters = {};
     if (listId) filters.listId = listId;
-    paymentMethod_normalize = normalizePaymentMethodFilter(paymentMethod);
-    if (paymentMethod_normalize !== undefined) filters.paymentMethod = paymentMethod_normalize;
+    // 复用状态规整方法，把支付方式筛选统一转成数字类型。
+    const normalizedPaymentMethod = normalizeStatusFilter(paymentMethod);
+    if (normalizedPaymentMethod !== undefined) filters.paymentMethod = normalizedPaymentMethod;
     if (startTime) filters.startTime = startTime;
     if (endTime) filters.endTime = endTime;
 
