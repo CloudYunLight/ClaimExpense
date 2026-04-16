@@ -66,7 +66,8 @@ http.interceptors.response.use(
   (response) => response,
   (error) => {
     const status = error.response?.status
-    if (status === 401) { // 如果状态码是 401（未授权），执行登出操作
+    // 仅在未认证(401)时强制登出，403 交给页面按权限不足处理。
+    if (status === 401) {
       handleUnauthorized()
     }
     return Promise.reject(error)
