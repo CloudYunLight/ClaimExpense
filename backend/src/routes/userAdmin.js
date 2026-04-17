@@ -7,6 +7,17 @@ const logger = require('../utils/logger');
 const router = express.Router();
 const { normalizeStatusFilter } = require('../utils/utils_status');
 
+const logAdminAudit = (req, action, outcome, extra = {}) => {
+  logger.info('Admin operation audit', {
+    action,
+    outcome,
+    adminId: req.user?.userId,
+    ip: req.ip,
+    timestamp: new Date().toISOString(),
+    ...extra
+  });
+};
+
 // 获取用户列表（仅管理员）
 router.get('/users', authenticateToken, requireAdminRole, async (req, res) => {
   try {
@@ -25,12 +36,9 @@ router.get('/users', authenticateToken, requireAdminRole, async (req, res) => {
     if (normalizedStatus !== undefined) filters.status = normalizedStatus;
 
     const result = await User.getUsers(parseInt(pageNum), parseInt(pageSize), filters);
-
-    // 记录操作日志
-    logger.info('Admin viewed user list', {
-      adminId: req.user.userId,
-      ip: req.ip,
-      timestamp: new Date().toISOString()
+    logAdminAudit(req, 'list_users', 'success', {
+      query: { pageNum: parseInt(pageNum), pageSize: parseInt(pageSize), ...filters },
+      total: result.total
     });
 
     res.status(200).json({
@@ -47,6 +55,9 @@ router.get('/users', authenticateToken, requireAdminRole, async (req, res) => {
     });
   } catch (error) {
     console.error('Get users error:', error);
+    logAdminAudit(req, 'list_users', 'error', {
+      error: error.message
+    });
     res.status(500).json({
       code: 500,
       msg: '服务器内部错误',
@@ -62,6 +73,10 @@ router.post('/addUsers', authenticateToken, requireAdminRole, async (req, res) =
     const { usernameAdd, realNameAdd } = req.body;
 
     if (!usernameAdd || !realNameAdd) {
+      logAdminAudit(req, 'create_user', 'validation_failed', {
+        reason: 'usernameAdd or realNameAdd is empty',
+        usernameAdd: usernameAdd || null
+      });
       return res.status(400).json({
         code: 400,
         msg: '新增的用户名和真实姓名不能为空',
@@ -73,6 +88,10 @@ router.post('/addUsers', authenticateToken, requireAdminRole, async (req, res) =
     // 检查用户名是否已存在
     const exists = await User.checkUsernameExists(usernameAdd);
     if (exists) {
+      logAdminAudit(req, 'create_user', 'conflict', {
+        reason: 'username already exists',
+        usernameAdd
+      });
       return res.status(409).json({
         code: 409,
         msg: '用户名已存在',
@@ -91,13 +110,9 @@ router.post('/addUsers', authenticateToken, requireAdminRole, async (req, res) =
       role: 0 // 默认为普通用户
     });
 
-    // 记录操作日志
-    logger.info('Admin created new user', {
-      adminId: req.user.userId,
+    logAdminAudit(req, 'create_user', 'success', {
       newUserId: result.userId,
-      newUsername: usernameAdd,
-      ip: req.ip,
-      timestamp: new Date().toISOString()
+      newUsername: usernameAdd
     });
 
     res.status(200).json({
@@ -111,6 +126,9 @@ router.post('/addUsers', authenticateToken, requireAdminRole, async (req, res) =
     });
   } catch (error) {
     console.error('Create user error:', error);
+    logAdminAudit(req, 'create_user', 'error', {
+      error: error.message
+    });
     res.status(500).json({
       code: 500,
       msg: '服务器内部错误',
@@ -128,6 +146,9 @@ router.post('/users/:userId/resetPassword', authenticateToken, requireAdminRole,
     const result = await User.resetUserPassword(userId);
 
     if (!result.success) {
+      logAdminAudit(req, 'reset_user_password', 'not_found', {
+        targetUserId: userId
+      });
       return res.status(404).json({
         code: 404,
         msg: '用户不存在',
@@ -136,12 +157,8 @@ router.post('/users/:userId/resetPassword', authenticateToken, requireAdminRole,
       });
     }
 
-    // 记录操作日志
-    logger.info('Admin reset user password', {
-      adminId: req.user.userId,
+    logAdminAudit(req, 'reset_user_password', 'success', {
       targetUserId: userId,
-      ip: req.ip,
-      timestamp: new Date().toISOString()
     });
 
     res.status(200).json({
@@ -154,6 +171,10 @@ router.post('/users/:userId/resetPassword', authenticateToken, requireAdminRole,
     });
   } catch (error) {
     console.error('Reset password error:', error);
+    logAdminAudit(req, 'reset_user_password', 'error', {
+      targetUserId: parseInt(req.params.userId),
+      error: error.message
+    });
     res.status(500).json({
       code: 500,
       msg: '服务器内部错误',
@@ -172,6 +193,10 @@ router.post('/users/:userId/status', authenticateToken, requireAdminRole, async 
     // 修复：转换为数字进行比较或与字符串值比较
     const statusValue = Number(status);
     if (status === undefined || isNaN(statusValue) || (statusValue !== 0 && statusValue !== 1)) {
+      logAdminAudit(req, 'update_user_status', 'validation_failed', {
+        targetUserId: userId,
+        status
+      });
       return res.status(400).json({
         code: 400,
         msg: '状态值必须为0（锁定）或1（正常）',
@@ -183,6 +208,10 @@ router.post('/users/:userId/status', authenticateToken, requireAdminRole, async 
     const result = await User.updateUserStatus(userId, statusValue);
 
     if (!result) {
+      logAdminAudit(req, 'update_user_status', 'not_found', {
+        targetUserId: userId,
+        status: statusValue
+      });
       return res.status(404).json({
         code: 404,
         msg: '用户不存在',
@@ -193,13 +222,10 @@ router.post('/users/:userId/status', authenticateToken, requireAdminRole, async 
 
     const statusMsg = statusValue === 1 ? '启用' : '锁定';
 
-    // 记录操作日志
-    logger.info(`Admin ${statusMsg} user account`, {
-      adminId: req.user.userId,
+    logAdminAudit(req, 'update_user_status', 'success', {
       targetUserId: userId,
-      status: status,
-      ip: req.ip,
-      timestamp: new Date().toISOString()
+      status: statusValue,
+      statusMsg
     });
 
     res.status(200).json({
@@ -210,6 +236,10 @@ router.post('/users/:userId/status', authenticateToken, requireAdminRole, async 
     });
   } catch (error) {
     console.error('Update user status error:', error);
+    logAdminAudit(req, 'update_user_status', 'error', {
+      targetUserId: parseInt(req.params.userId),
+      error: error.message
+    });
     res.status(500).json({
       code: 500,
       msg: '服务器内部错误',
