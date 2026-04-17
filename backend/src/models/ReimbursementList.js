@@ -79,7 +79,7 @@ const ReimbursementList = {
 
     if (normalizedStatus !== undefined) {
       countQuery += ' AND status = ?';
-      countParams.push(status);
+      countParams.push(normalizedStatus);
     }
 
     if (startTime) {
