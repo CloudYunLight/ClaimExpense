@@ -5,15 +5,23 @@ const DatabaseUtil = require('./utils/database');
 
 const PORT = config.server.port ;
 
-app.listen(PORT, '0.0.0.0', () => {
-  logger.info(`Running on http://0.0.0.0:${PORT}`);
-  logger.info(`Check at [GET] http://0.0.0.0:${PORT}/health`);
-  
-  // 输出当前日志级别信息
-  logger.info(`Current log level: ${logger.level}`);
+const bootstrap = async () => {
+  const connected = await DatabaseUtil.testConnection();
+  if (!connected) {
+    logger.error('Database connection failed, aborting server startup');
+    process.exit(1);
+  }
 
-  DatabaseUtil.testConnection().then(async () => {
-    // 数据库连接成功后，检查并初始化管理员账户
-    await DatabaseUtil.initializeAdminUser();
+  await DatabaseUtil.initializeAdminUser();
+
+  app.listen(PORT, '0.0.0.0', () => {
+    logger.info(`Running on http://0.0.0.0:${PORT}`);
+    logger.info(`Check at [GET] http://0.0.0.0:${PORT}/health`);
+    logger.info(`Current log level: ${logger.level}`);
   });
+};
+
+bootstrap().catch((error) => {
+  logger.error('Server bootstrap failed', error);
+  process.exit(1);
 });
