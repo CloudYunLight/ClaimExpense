@@ -32,19 +32,34 @@ class DatabaseInitializer:
         Args:
             config_file: 配置文件路径
         """
-        self.config_file = config_file
+        self.config_file = config_file or os.getenv('CONFIG_FILE', 'config.ini')
         self.config = self._load_config()
         
     def _load_config(self) -> configparser.ConfigParser:
         """
         加载配置文件
         """
-        if not os.path.exists(self.config_file):
-            logger.error(f"配置文件 {self.config_file} 不存在")
-            sys.exit(1)
-            
         config = configparser.ConfigParser()
-        config.read(self.config_file, encoding='utf-8')
+        config_file_missing = not os.path.exists(self.config_file)
+        if os.path.exists(self.config_file):
+            config.read(self.config_file, encoding='utf-8')
+
+        if 'database' not in config:
+            config['database'] = {}
+
+        env_map = {
+            'host': 'DB_HOST',
+            'port': 'DB_PORT',
+            'username': 'DB_USER',
+            'password': 'DB_PASSWORD',
+            'database': 'DB_NAME',
+            'charset': 'DB_CHARSET'
+        }
+
+        for key, env_key in env_map.items():
+            env_value = os.getenv(env_key)
+            if env_value is not None and env_value.strip() != '':
+                config['database'][key] = env_value
         
         # 验证必要的配置项
         required_sections = ['database']
@@ -61,6 +76,9 @@ class DatabaseInitializer:
                 if key not in config[section]:
                     logger.error(f"配置文件中缺少 {section}.{key}")
                     sys.exit(1)
+
+        if config_file_missing:
+            logger.warning(f"配置文件 {self.config_file} 不存在，已改用环境变量覆盖")
                     
         return config
     
@@ -399,7 +417,7 @@ def main():
     print("=" * 60)
     
     # 检查命令行参数
-    config_file = 'config.ini'
+    config_file = os.getenv('CONFIG_FILE', 'config.ini')
     if len(sys.argv) > 1:
         config_file = sys.argv[1]
     

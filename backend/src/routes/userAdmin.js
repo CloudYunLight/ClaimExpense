@@ -12,10 +12,20 @@ const logAdminAudit = (req, action, outcome, extra = {}) => {
     action,
     outcome,
     adminId: req.user?.userId,
+    method: req.method,
+    path: req.originalUrl,
     ip: req.ip,
     timestamp: new Date().toISOString(),
     ...extra
   });
+};
+
+const parsePositiveInt = (value) => {
+  const num = Number(value);
+  if (!Number.isInteger(num) || num <= 0) {
+    return null;
+  }
+  return num;
 };
 
 // 获取用户列表（仅管理员）
@@ -27,6 +37,22 @@ router.get('/users', authenticateToken, requireAdminRole, async (req, res) => {
       你不需要手动设置它，而是通过 URL 直接传入参数。
     */
     const { pageNum = 1, pageSize = 10, username, realName, status } = req.query;
+    const normalizedPageNum = parsePositiveInt(pageNum);
+    const normalizedPageSize = parsePositiveInt(pageSize);
+
+    if (!normalizedPageNum || !normalizedPageSize) {
+      logAdminAudit(req, 'list_users', 'validation_failed', {
+        reason: 'invalid pageNum or pageSize',
+        pageNum,
+        pageSize
+      });
+      return res.status(400).json({
+        code: 400,
+        msg: '分页参数必须为大于0的整数',
+        data: null,
+        timestamp: Date.now()
+      });
+    }
 
 
     const filters = {};
@@ -35,9 +61,9 @@ router.get('/users', authenticateToken, requireAdminRole, async (req, res) => {
     const normalizedStatus = normalizeStatusFilter(status);
     if (normalizedStatus !== undefined) filters.status = normalizedStatus;
 
-    const result = await User.getUsers(parseInt(pageNum), parseInt(pageSize), filters);
+    const result = await User.getUsers(normalizedPageNum, normalizedPageSize, filters);
     logAdminAudit(req, 'list_users', 'success', {
-      query: { pageNum: parseInt(pageNum), pageSize: parseInt(pageSize), ...filters },
+      query: { pageNum: normalizedPageNum, pageSize: normalizedPageSize, ...filters },
       total: result.total
     });
 
@@ -141,7 +167,20 @@ router.post('/addUsers', authenticateToken, requireAdminRole, async (req, res) =
 // 重置用户密码（仅管理员）
 router.post('/users/:userId/resetPassword', authenticateToken, requireAdminRole, async (req, res) => {
   try {
-    const userId = parseInt(req.params.userId);
+    const userId = parsePositiveInt(req.params.userId);
+
+    if (!userId) {
+      logAdminAudit(req, 'reset_user_password', 'validation_failed', {
+        reason: 'invalid userId',
+        targetUserId: req.params.userId
+      });
+      return res.status(400).json({
+        code: 400,
+        msg: '用户ID必须为大于0的整数',
+        data: null,
+        timestamp: Date.now()
+      });
+    }
 
     const result = await User.resetUserPassword(userId);
 
@@ -187,8 +226,22 @@ router.post('/users/:userId/resetPassword', authenticateToken, requireAdminRole,
 // 启停用户账户（仅管理员）
 router.post('/users/:userId/status', authenticateToken, requireAdminRole, async (req, res) => {
   try {
-    const userId = parseInt(req.params.userId);
+    const userId = parsePositiveInt(req.params.userId);
     const { status } = req.body;
+
+    if (!userId) {
+      logAdminAudit(req, 'update_user_status', 'validation_failed', {
+        reason: 'invalid userId',
+        targetUserId: req.params.userId,
+        status
+      });
+      return res.status(400).json({
+        code: 400,
+        msg: '用户ID必须为大于0的整数',
+        data: null,
+        timestamp: Date.now()
+      });
+    }
 
     // 修复：转换为数字进行比较或与字符串值比较
     const statusValue = Number(status);
@@ -237,7 +290,7 @@ router.post('/users/:userId/status', authenticateToken, requireAdminRole, async 
   } catch (error) {
     console.error('Update user status error:', error);
     logAdminAudit(req, 'update_user_status', 'error', {
-      targetUserId: parseInt(req.params.userId),
+      targetUserId: req.params.userId,
       error: error.message
     });
     res.status(500).json({
